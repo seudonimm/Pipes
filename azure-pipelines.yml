@@ -6,10 +6,17 @@
 trigger:
 - main
 
+variables:
+  - group: JwdVars
+
 pool:
-  vmImage: ubuntu-latest
+  vmImage: 'macos-latest'
 
 steps:
+- checkout: self
+  persistCredentials: true
+  clean: true
+
 - task: NodeTool@0
   inputs:
     versionSpec: '20.x'
@@ -17,5 +24,54 @@ steps:
 
 - script: |
     npm install
-    npm run build
-  displayName: 'npm install and build'
+  displayName: 'npm install'
+
+- script: |
+    # Disable autocommit on version bump (npm equivalent to yarn config options)
+    npm config set version-sign-git-tag false
+    npm config set version-git-tag false
+    npm config set version-commit-hooks false
+    # Checkout branch where the build is triggered
+    git checkout $(Build.SourceBranchName)
+    # Extract existing version of package.json
+    oldVer=$(jq -r ".version" package.json)
+    # Bump version
+    npm version patch --no-git-tag-version --no-commit-hooks
+    # Add bumped version to staging
+    git add *
+    # Extract new version of package.json
+    newVer=$(jq -r ".version" package.json)
+    # Set environment variables
+    echo "##vso[task.setvariable variable=OLD_VERSION]$oldVer"
+    echo "##vso[task.setvariable variable=NEW_VERSION]$newVer"
+  displayName: 'Bump version and set variables'
+
+- task: Gradle@2
+  displayName: 'Build APK'
+  inputs:
+    gradleWrapperFile: 'android/gradlew'
+    workingDirectory: 'android/'
+    options: '-PversionName=$(NEW_VERSION) -PversionCode=$(Build.BuildId)'
+    tasks: 'assembleRelease'
+    publishJUnitResults: false
+    javaHomeOption: 'JDKVersion'
+    jdkVersionOption: '1.8'
+    gradleOptions: '-Xmx3072m'
+    sonarQubeRunAnalysis: false
+
+- task: AndroidSigning@3
+  displayName: 'Sign APK'
+  inputs:
+    apkFiles: 'android/app/build/outputs/apk/release/*.apk'
+    apksignerKeystoreFile: 'mobile-prod.keystore'
+    apksignerKeystorePassword: '$(AndroidKeyStorePassword)'
+    apksignerKeystoreAlias: '$(AndroidKeyAlias)'
+    apksignerKeyPassword: '$(AndroidKeyAliasPassword)'
+    zipalign: true
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish APK to artifacts'
+  inputs:
+    PathtoPublish: 'android/app/build/outputs/apk/release'
+    ArtifactName: 'android'
+    publishLocation: 'Container'
