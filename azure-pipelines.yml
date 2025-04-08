@@ -63,7 +63,7 @@ steps:
   displayName: 'Sign APK'
   inputs:
     apkFiles: 'android/app/build/outputs/apk/release/*.apk'
-    apksignerKeystoreFile: 'mobile-prod.keystore'
+    apksignerKeystoreFile: 'my-upload-key-jwd.keystore'
     apksignerKeystorePassword: '$(AndroidKeyStorePassword)'
     apksignerKeystoreAlias: '$(AndroidKeyAlias)'
     apksignerKeyPassword: '$(AndroidKeyAliasPassword)'
