@@ -55,10 +55,10 @@ steps:
     tasks: 'assembleRelease'
     publishJUnitResults: false
     javaHomeOption: 'JDKVersion'
-    jdkVersionOption: '1.8'
+    # jdkVersionOption: '1.8'
     gradleOptions: '-Xmx3072m'
     sonarQubeRunAnalysis: false
-    version: '21'
+    versionSpec: '21'
 
 - task: AndroidSigning@3
   displayName: 'Sign APK'
